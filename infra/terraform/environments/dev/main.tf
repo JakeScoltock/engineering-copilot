@@ -16,11 +16,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-import {
-  to = aws_iam_role.lambda_exec
-  id = "engineering-copilot-lambda-exec"
-}
-
 # IAM role for Lambda
 resource "aws_iam_role" "lambda_exec" {
   name = "${var.project}-lambda-exec"
@@ -60,6 +55,10 @@ resource "aws_lambda_function" "query_api" {
 # API Gateway REST API
 resource "aws_api_gateway_rest_api" "api" {
   name = "${var.project}-api"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_api_gateway_resource" "health" {
