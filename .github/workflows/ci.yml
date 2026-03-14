@@ -88,7 +88,7 @@ jobs:
         run: terraform init -input=false
 
       - name: Plan
-        run: terraform plan -input=false
+        run: terraform plan -input=false -out=tfplan
 
       - name: Apply
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve tfplan
