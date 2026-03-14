@@ -2,10 +2,23 @@ terraform {
   required_providers {
     aws = { source = "hashicorp/aws", version = "~> 5.0" }
   }
+
+  backend "s3" {
+    bucket         = "engineering-copilot-tf-state"
+    key            = "environments/dev/terraform.tfstate"
+    region         = "eu-west-1"
+    dynamodb_table = "engineering-copilot-tf-lock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
   region = var.aws_region
+}
+
+import {
+  to = aws_iam_role.lambda_exec
+  id = "engineering-copilot-lambda-exec"
 }
 
 # IAM role for Lambda
