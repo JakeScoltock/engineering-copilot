@@ -33,6 +33,7 @@ crash.*.log
 
 # ── Lambda build artefacts ────────────────────────────────────
 infra/terraform/environments/*/lambda.zip
+infra/terraform/environments/*/builds/
 dist/
 build/
 

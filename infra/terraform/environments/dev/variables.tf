@@ -1,7 +1,10 @@
 variable "aws_region" {
-  default = "eu-west-1"
+  description = "AWS region to deploy into."
+  default     = "eu-west-1"
 }
 
 variable "project" {
-  default = "engineering-copilot"
+  description = "Project name used as a prefix for all resource names."
+  default     = "engineering-copilot"
 }
+
