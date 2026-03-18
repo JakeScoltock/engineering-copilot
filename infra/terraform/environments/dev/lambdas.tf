@@ -7,8 +7,7 @@ resource "aws_lambda_function" "query_api" {
   handler       = "src.query_api.handler.lambda_handler"
   filename      = "${path.module}/builds/query_api.zip"
 
-  # Derived from source files so terraform plan works before the zip is built
-  source_code_hash = local.lambda_src_hash
+  source_code_hash = filebase64sha256("${path.module}/builds/query_api.zip")
 
   timeout     = 30
   memory_size = 512
@@ -21,8 +20,6 @@ resource "aws_lambda_function" "query_api" {
       VECTOR_BUCKET_NAME = local.vector_bucket_name
     }
   }
-
-  depends_on = [null_resource.build_lambdas]
 }
 
 resource "aws_lambda_permission" "apigw_query_api" {
@@ -42,7 +39,7 @@ resource "aws_lambda_function" "ingestion" {
   handler       = "src.ingestion.handler.lambda_handler"
   filename      = "${path.module}/builds/ingestion.zip"
 
-  source_code_hash = local.lambda_src_hash
+  source_code_hash = filebase64sha256("${path.module}/builds/ingestion.zip")
 
   timeout     = 600
   memory_size = 1024
@@ -55,8 +52,6 @@ resource "aws_lambda_function" "ingestion" {
       GITHUB_TOKEN_SECRET_ARN = aws_secretsmanager_secret.github_token.arn
     }
   }
-
-  depends_on = [null_resource.build_lambdas]
 }
 
 resource "aws_lambda_event_source_mapping" "ingestion_sqs" {
