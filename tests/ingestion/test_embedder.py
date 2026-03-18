@@ -5,7 +5,6 @@ import json
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 
 from src.ingestion.embedder import embed_texts
 from src.shared.bedrock import EMBEDDING_DIM
