@@ -20,28 +20,8 @@ data "aws_caller_identity" "current" {}
 
 locals {
   vector_bucket_name = "${var.project}-vectors"
-
-  # Hash of all Python source files + requirements + build script.
-  # Used as source_code_hash on Lambda functions so Terraform detects
-  # source changes without needing to read the (not-yet-built) zip.
-  lambda_src_hash = sha256(join("", concat(
-    [for f in sort(fileset("${path.module}/../../../../src", "**/*.py")) :
-    filesha256("${path.module}/../../../../src/${f}")],
-    [
-      filesha256("${path.module}/../../../../requirements.txt"),
-      filesha256("${path.module}/../../../../scripts/build_lambdas.sh"),
-    ]
-  )))
 }
 
-# Builds both Lambda zips whenever source changes.
-# depends_on in aws_lambda_function resources ensures the zip exists before upload.
-resource "null_resource" "build_lambdas" {
-  triggers = {
-    src_hash = local.lambda_src_hash
-  }
-
-  provisioner "local-exec" {
-    command = "bash '${path.module}/../../../../scripts/build_lambdas.sh'"
-  }
-}
+# Note: Lambda zip files must be built before running terraform plan/apply.
+# In CI this is handled by the "Build Lambda packages" step.
+# Locally: run `bash scripts/build_lambdas.sh` from the repo root first.
