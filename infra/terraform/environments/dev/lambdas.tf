@@ -7,7 +7,7 @@ resource "aws_lambda_function" "query_api" {
   handler       = "src.query_api.handler.lambda_handler"
   filename      = "${path.module}/builds/query_api.zip"
 
-  source_code_hash = filebase64sha256("${path.module}/builds/query_api.zip")
+  source_code_hash = local.lambda_src_hash
 
   timeout     = 30
   memory_size = 512
@@ -39,7 +39,7 @@ resource "aws_lambda_function" "ingestion" {
   handler       = "src.ingestion.handler.lambda_handler"
   filename      = "${path.module}/builds/ingestion.zip"
 
-  source_code_hash = filebase64sha256("${path.module}/builds/ingestion.zip")
+  source_code_hash = local.lambda_src_hash
 
   timeout     = 600
   memory_size = 1024

@@ -20,6 +20,17 @@ data "aws_caller_identity" "current" {}
 
 locals {
   vector_bucket_name = "${var.project}-vectors"
+
+  # Hash of all Python source files + requirements + build script.
+  # Changes here trigger Terraform to upload new Lambda zips.
+  lambda_src_hash = sha256(join("", concat(
+    [for f in sort(fileset("${path.module}/../../../../src", "**/*.py")) :
+    filesha256("${path.module}/../../../../src/${f}")],
+    [
+      filesha256("${path.module}/../../../../requirements.txt"),
+      filesha256("${path.module}/../../../../scripts/build_lambdas.sh"),
+    ]
+  )))
 }
 
 # Note: Lambda zip files must be built before running terraform plan/apply.
