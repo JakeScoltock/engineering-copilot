@@ -53,8 +53,8 @@ resource "aws_iam_role_policy" "query_api" {
       },
       {
         # S3 Vectors — query only. ARN format: arn:aws:s3vectors:region:account:bucket/name/index/*
-        Effect = "Allow"
-        Action = ["s3vectors:QueryVectors", "s3vectors:GetIndex"]
+        Effect   = "Allow"
+        Action   = ["s3vectors:QueryVectors", "s3vectors:GetIndex"]
         Resource = "arn:aws:s3vectors:${var.aws_region}:${data.aws_caller_identity.current.account_id}:bucket/${local.vector_bucket_name}/index/*"
       },
     ]
@@ -97,8 +97,8 @@ resource "aws_iam_role_policy" "ingestion" {
         Resource = "${aws_s3_bucket.repo_data.arn}/repos/*"
       },
       {
-        Effect = "Allow"
-        Action = ["bedrock:InvokeModel"]
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
         Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-embed-text-v2:0"
       },
       {
