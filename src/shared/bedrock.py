@@ -15,7 +15,7 @@ def embed_text(text: str, bedrock_client) -> np.ndarray:
     """Embed a single string using Bedrock Titan, returning a normalised float32 vector."""
     response = bedrock_client.invoke_model(
         modelId=TITAN_MODEL_ID,
-        body=json.dumps({"inputText": text, "normalize": True}),
+        body=json.dumps({"inputText": text}),
         contentType="application/json",
         accept="application/json",
     )
