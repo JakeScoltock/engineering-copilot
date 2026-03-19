@@ -11,6 +11,7 @@ from botocore.exceptions import ClientError
 from src.ingestion.chunker import chunk_documents
 from src.ingestion.embedder import embed_texts
 from src.ingestion.github_fetcher import fetch_repo
+from src.shared.bedrock import EMBEDDING_DIM
 from src.shared.models import IngestionStatus
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,6 @@ def _get_github_token() -> str | None:
     _github_token_cache = response.get("SecretString") or None
     return _github_token_cache
 
-_VECTOR_DIM = 1536
 _PUT_VECTORS_BATCH_SIZE = 500
 _MAX_CHUNKS = 10_000
 
@@ -126,7 +126,7 @@ def _reset_index(repo_id: str) -> None:
         vectorBucketName=_VECTOR_BUCKET_NAME,
         indexName=repo_id,
         dataType="float32",
-        dimension=_VECTOR_DIM,
+        dimension=EMBEDDING_DIM,
         distanceMetric="cosine",
     )
     logger.info("vector index created repo_id=%s", repo_id)

@@ -8,7 +8,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 TITAN_MODEL_ID = "amazon.titan-embed-text-v2:0"
-EMBEDDING_DIM = 1536
+EMBEDDING_DIM = 1024
 
 
 def embed_text(text: str, bedrock_client) -> np.ndarray:
