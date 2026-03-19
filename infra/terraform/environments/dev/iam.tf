@@ -54,7 +54,7 @@ resource "aws_iam_role_policy" "query_api" {
       {
         # S3 Vectors — query only. ARN format: arn:aws:s3vectors:region:account:bucket/name/index/*
         Effect   = "Allow"
-        Action   = ["s3vectors:GetVectors", "s3vectors:GetIndex"]
+        Action   = ["s3vectors:QueryVectors", "s3vectors:GetVectors", "s3vectors:GetIndex"]
         Resource = "arn:aws:s3vectors:${var.aws_region}:${data.aws_caller_identity.current.account_id}:bucket/${local.vector_bucket_name}/index/*"
       },
     ]
