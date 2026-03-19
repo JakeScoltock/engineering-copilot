@@ -7,7 +7,7 @@ from src.shared.bedrock import embed_text  # noqa: F401 — re-exported for hand
 
 logger = logging.getLogger(__name__)
 
-_CLAUDE_MODEL_ID = "anthropic.claude-haiku-4-5-20251001"
+_CLAUDE_MODEL_ID = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 
 def ask_claude(question: str, context: str, bedrock_client) -> str:
