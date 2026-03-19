@@ -48,7 +48,7 @@ resource "aws_iam_role_policy" "query_api" {
         Action = ["bedrock:InvokeModel"]
         Resource = [
           "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-embed-text-v2:0",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-haiku-4-5-20251001",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
         ]
       },
       {
