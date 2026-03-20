@@ -53,6 +53,11 @@ resource "aws_iam_role_policy" "query_api" {
         ]
       },
       {
+        Effect   = "Allow"
+        Action   = ["aws-marketplace:ViewSubscriptions", "aws-marketplace:Subscribe"]
+        Resource = "*"
+      },
+      {
         # S3 Vectors — query only. ARN format: arn:aws:s3vectors:region:account:bucket/name/index/*
         Effect   = "Allow"
         Action   = ["s3vectors:QueryVectors", "s3vectors:GetVectors", "s3vectors:GetIndex"]
