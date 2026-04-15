@@ -9,29 +9,34 @@ from src.query_api.handler import lambda_handler
 
 
 def _event(
-    method: str,
-    resource: str,
+    route: str,
     body: dict | None = None,
     path_params: dict | None = None,
 ) -> dict:
+    """Build a minimal REST API v1 Lambda proxy event from 'METHOD /resource'."""
+    method, resource = route.split(" ", 1)
     return {
         "httpMethod": method,
         "resource": resource,
-        "path": resource,
         "pathParameters": path_params,
         "body": json.dumps(body) if body else None,
+        "isBase64Encoded": False,
     }
 
 
 class TestRouting:
     def test_health_returns_200(self) -> None:
-        resp = lambda_handler(_event("GET", "/health"), None)
+        resp = lambda_handler(_event("GET /health"), None)
         assert resp["statusCode"] == 200
         assert json.loads(resp["body"])["status"] == "ok"
 
     def test_unknown_route_returns_404(self) -> None:
-        resp = lambda_handler(_event("DELETE", "/unknown"), None)
+        resp = lambda_handler(_event("DELETE /unknown"), None)
         assert resp["statusCode"] == 404
+
+    def test_responses_include_cors_header(self) -> None:
+        resp = lambda_handler(_event("GET /health"), None)
+        assert resp["headers"]["Access-Control-Allow-Origin"] == "*"
 
 
 class TestCreateRepo:
@@ -45,7 +50,7 @@ class TestCreateRepo:
         ):
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
+                _event("POST /repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
                 None,
             )
 
@@ -64,7 +69,7 @@ class TestCreateRepo:
         ):
             mock_dynamo.Table.return_value = mock_table
             lambda_handler(
-                _event("POST", "/repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
+                _event("POST /repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
                 None,
             )
 
@@ -83,7 +88,7 @@ class TestCreateRepo:
         ):
             mock_dynamo.Table.return_value = mock_table
             lambda_handler(
-                _event("POST", "/repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
+                _event("POST /repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
                 None,
             )
 
@@ -93,18 +98,18 @@ class TestCreateRepo:
         assert "repo_id" in msg
 
     def test_returns_400_when_url_missing(self) -> None:
-        resp = lambda_handler(_event("POST", "/repos", body={}), None)
+        resp = lambda_handler(_event("POST /repos", body={}), None)
         assert resp["statusCode"] == 400
 
     def test_returns_400_for_invalid_github_url(self) -> None:
         resp = lambda_handler(
-            _event("POST", "/repos", body={"github_url": "https://gitlab.com/foo/bar"}),
+            _event("POST /repos", body={"github_url": "https://gitlab.com/foo/bar"}),
             None,
         )
         assert resp["statusCode"] == 400
 
     def test_returns_400_for_malformed_json_body(self) -> None:
-        event = _event("POST", "/repos")
+        event = _event("POST /repos")
         event["body"] = "{not valid json"
         resp = lambda_handler(event, None)
         assert resp["statusCode"] == 400
@@ -120,7 +125,7 @@ class TestCreateRepo:
         ):
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
+                _event("POST /repos", body={"github_url": "https://github.com/octocat/Hello-World"}),
                 None,
             )
 
@@ -138,7 +143,7 @@ class TestGetRepo:
         with patch("src.query_api.handler._dynamodb") as mock_dynamo:
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("GET", "/repos/{repo_id}", path_params={"repo_id": "abc"}),
+                _event("GET /repos/{repo_id}", path_params={"repo_id": "abc"}),
                 None,
             )
 
@@ -154,7 +159,7 @@ class TestGetRepo:
         with patch("src.query_api.handler._dynamodb") as mock_dynamo:
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("GET", "/repos/{repo_id}", path_params={"repo_id": "nope"}),
+                _event("GET /repos/{repo_id}", path_params={"repo_id": "nope"}),
                 None,
             )
 
@@ -162,7 +167,7 @@ class TestGetRepo:
 
     def test_returns_400_when_repo_id_missing(self) -> None:
         resp = lambda_handler(
-            _event("GET", "/repos/{repo_id}", path_params={}),
+            _event("GET /repos/{repo_id}", path_params={}),
             None,
         )
         assert resp["statusCode"] == 400
@@ -190,12 +195,16 @@ class TestQueryRepo:
             patch("src.query_api.handler._dynamodb") as mock_dynamo,
             patch("src.query_api.handler._s3vectors", mock_s3vectors),
             patch("src.query_api.handler._s3", mock_s3),
-            patch("src.query_api.handler.embed_text", return_value=np.zeros(1536, dtype="float32")),
-            patch("src.query_api.handler.ask_claude", return_value="It does X."),
+            patch("src.query_api.handler.embed_text", return_value=np.zeros(1024, dtype="float32")),
+            patch("src.query_api.handler.generate_answer", return_value="It does X."),
         ):
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos/{repo_id}/query", body={"question": "What does foo do?"}, path_params={"repo_id": "abc"}),
+                _event(
+                    "POST /repos/{repo_id}/query",
+                    body={"question": "What does foo do?"},
+                    path_params={"repo_id": "abc"},
+                ),
                 None,
             )
 
@@ -211,7 +220,7 @@ class TestQueryRepo:
         with patch("src.query_api.handler._dynamodb") as mock_dynamo:
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos/{repo_id}/query", body={"question": "?"}, path_params={"repo_id": "nope"}),
+                _event("POST /repos/{repo_id}/query", body={"question": "?"}, path_params={"repo_id": "nope"}),
                 None,
             )
 
@@ -226,7 +235,7 @@ class TestQueryRepo:
         with patch("src.query_api.handler._dynamodb") as mock_dynamo:
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos/{repo_id}/query", body={"question": "?"}, path_params={"repo_id": "abc"}),
+                _event("POST /repos/{repo_id}/query", body={"question": "?"}, path_params={"repo_id": "abc"}),
                 None,
             )
 
@@ -237,7 +246,7 @@ class TestQueryRepo:
         with patch("src.query_api.handler._dynamodb") as mock_dynamo:
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos/{repo_id}/query", body={"question": "   "}, path_params={"repo_id": "abc"}),
+                _event("POST /repos/{repo_id}/query", body={"question": "   "}, path_params={"repo_id": "abc"}),
                 None,
             )
         assert resp["statusCode"] == 400
@@ -247,7 +256,44 @@ class TestQueryRepo:
         with patch("src.query_api.handler._dynamodb") as mock_dynamo:
             mock_dynamo.Table.return_value = mock_table
             resp = lambda_handler(
-                _event("POST", "/repos/{repo_id}/query", body={"question": "x" * 2001}, path_params={"repo_id": "abc"}),
+                _event("POST /repos/{repo_id}/query", body={"question": "x" * 2001}, path_params={"repo_id": "abc"}),
                 None,
             )
         assert resp["statusCode"] == 400
+
+    def test_history_is_accepted(self) -> None:
+        """history in the request body must not cause an error; the full query flow must run."""
+        mock_table = self._ready_table()
+        mock_s3vectors = MagicMock()
+        mock_s3vectors.query_vectors.return_value = {
+            "vectors": [{"key": "0", "metadata": {"source": "main.py", "chunk_index": 0}}]
+        }
+        chunks_json = json.dumps([{"source": "main.py", "chunk_index": 0, "text": "def foo(): pass"}]).encode()
+        mock_s3 = MagicMock()
+        mock_s3.get_object.return_value = {"Body": MagicMock(read=lambda: chunks_json)}
+
+        with (
+            patch("src.query_api.handler._dynamodb") as mock_dynamo,
+            patch("src.query_api.handler._s3vectors", mock_s3vectors),
+            patch("src.query_api.handler._s3", mock_s3),
+            patch("src.query_api.handler.embed_text", return_value=np.zeros(1024, dtype="float32")),
+            patch("src.query_api.handler.generate_answer", return_value="It does X.") as mock_generate,
+        ):
+            mock_dynamo.Table.return_value = mock_table
+            resp = lambda_handler(
+                _event(
+                    "POST /repos/{repo_id}/query",
+                    body={
+                        "question": "Tell me more",
+                        "history": [
+                            {"role": "user", "content": "What does foo do?"},
+                            {"role": "assistant", "content": "It does X."},
+                        ],
+                    },
+                    path_params={"repo_id": "abc"},
+                ),
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        mock_generate.assert_called_once()

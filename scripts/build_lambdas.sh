@@ -30,9 +30,10 @@ build() {
   echo "    ok -> ${BUILDS_DIR}/${name}.zip"
 }
 
-# Both Lambdas share the full src/ tree so they need all dependencies.
+# All three Lambdas share the full src/ tree and the same dependencies.
 # boto3 is provided by the Lambda runtime and excluded from the zips.
-build "query_api"  "pydantic>=2.0,<3.0" "httpx>=0.27,<1.0" "numpy>=1.26,<3.0"
-build "ingestion"  "pydantic>=2.0,<3.0" "httpx>=0.27,<1.0" "numpy>=1.26,<3.0"
+build "query_api"       "pydantic>=2.0,<3.0" "httpx>=0.27,<1.0" "numpy>=1.26,<3.0"
+build "query_streaming" "pydantic>=2.0,<3.0" "httpx>=0.27,<1.0" "numpy>=1.26,<3.0"
+build "ingestion"       "pydantic>=2.0,<3.0" "httpx>=0.27,<1.0" "numpy>=1.26,<3.0"
 
 echo "==> Done"

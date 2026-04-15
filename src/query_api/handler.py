@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import boto3
 
 from src.ingestion.github_fetcher import parse_github_url
-from src.query_api.bedrock import ask_claude, embed_text
+from src.query_api.bedrock import generate_answer, embed_text
 from src.shared.models import IngestionStatus, QueryRequest, QueryResponse, RepoJob, SourceRef
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,13 @@ _VECTOR_BUCKET_NAME = os.environ.get("VECTOR_BUCKET_NAME", "")
 _TOP_K = 5
 _MAX_QUESTION_LEN = 2000
 _JOB_TTL_DAYS = 30
+
+_CORS_HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "content-type,x-api-key",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+}
 
 
 def lambda_handler(event, context):
@@ -106,7 +113,7 @@ def _create_repo(event: dict) -> dict:
 
     return {
         "statusCode": 202,
-        "headers": {"Content-Type": "application/json"},
+        "headers": _CORS_HEADERS,
         "body": json.dumps({"repo_id": job.repo_id, "status": IngestionStatus.PENDING.value}),
     }
 
@@ -194,8 +201,7 @@ def _query_repo(event: dict) -> dict:
 
     context = "\n\n---\n\n".join(context_parts)
 
-    # Ask Claude.
-    answer = ask_claude(req.question, context, _bedrock)
+    answer = generate_answer(req.question, context, _bedrock)
     logger.info("query_repo complete repo_id=%s answer_len=%d", repo_id, len(answer))
 
     response_body = QueryResponse(answer=answer, sources=sources)
@@ -207,7 +213,7 @@ def _query_repo(event: dict) -> dict:
 def _ok(body: dict) -> dict:
     return {
         "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
+        "headers": _CORS_HEADERS,
         "body": json.dumps(body),
     }
 
@@ -215,6 +221,6 @@ def _ok(body: dict) -> dict:
 def _error(status: int, message: str) -> dict:
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": _CORS_HEADERS,
         "body": json.dumps({"error": message}),
     }

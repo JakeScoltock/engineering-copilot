@@ -30,6 +30,43 @@ resource "aws_lambda_permission" "apigw_query_api" {
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }
 
+# Streaming query Lambda (Function URL — separate from the REST query-api Lambda
+# because invoke_mode = RESPONSE_STREAM requires a different handler entry point)
+
+resource "aws_lambda_function" "query_streaming" {
+  function_name    = "${var.project}-query-streaming"
+  role             = aws_iam_role.query_api.arn
+  runtime          = "python3.13"
+  handler          = "src.query_api.streaming_handler.lambda_handler"
+  filename         = "${path.module}/builds/query_streaming.zip"
+  source_code_hash = local.lambda_src_hash
+
+  timeout     = 60
+  memory_size = 512
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE     = aws_dynamodb_table.jobs.name
+      S3_BUCKET          = aws_s3_bucket.repo_data.bucket
+      VECTOR_BUCKET_NAME = local.vector_bucket_name
+    }
+  }
+}
+
+resource "aws_lambda_function_url" "query_streaming" {
+  function_name      = aws_lambda_function.query_streaming.function_name
+  authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
+
+  cors {
+    allow_credentials = false
+    allow_origins     = ["*"] # tighten to Amplify domain after production deploy
+    allow_methods     = ["POST"]
+    allow_headers     = ["content-type", "x-api-key"]
+    max_age           = 86400
+  }
+}
+
 # Ingestion Lambda
 
 resource "aws_lambda_function" "ingestion" {
