@@ -42,12 +42,12 @@ def _ready_table() -> MagicMock:
 
 class TestAuth:
     def test_rejects_missing_key_when_api_key_configured(self) -> None:
-        with patch("src.query_api.streaming_handler._API_KEY", "secret"):
+        with patch("src.query_api.streaming_handler._get_api_key", return_value="secret"):
             events = list(_generate_events(_event(api_key="")))
         assert events == [{"type": "error", "error": "Unauthorized"}]
 
     def test_rejects_wrong_key(self) -> None:
-        with patch("src.query_api.streaming_handler._API_KEY", "secret"):
+        with patch("src.query_api.streaming_handler._get_api_key", return_value="secret"):
             events = list(_generate_events(_event(api_key="wrong")))
         assert events == [{"type": "error", "error": "Unauthorized"}]
 
@@ -60,7 +60,7 @@ class TestAuth:
         mock_s3vectors.query_vectors.return_value = {"vectors": [{"key": "0"}]}
 
         with (
-            patch("src.query_api.streaming_handler._API_KEY", "secret"),
+            patch("src.query_api.streaming_handler._get_api_key", return_value="secret"),
             patch("src.query_api.streaming_handler._dynamodb") as mock_dynamo,
             patch("src.query_api.streaming_handler._s3vectors", mock_s3vectors),
             patch("src.query_api.streaming_handler._s3", mock_s3),
@@ -81,7 +81,7 @@ class TestAuth:
         mock_s3vectors.query_vectors.return_value = {"vectors": [{"key": "0"}]}
 
         with (
-            patch("src.query_api.streaming_handler._API_KEY", ""),
+            patch("src.query_api.streaming_handler._get_api_key", return_value=""),
             patch("src.query_api.streaming_handler._dynamodb") as mock_dynamo,
             patch("src.query_api.streaming_handler._s3vectors", mock_s3vectors),
             patch("src.query_api.streaming_handler._s3", mock_s3),
