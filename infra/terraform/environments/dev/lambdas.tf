@@ -76,6 +76,13 @@ resource "aws_lambda_permission" "query_streaming_url_public" {
   function_url_auth_type = "NONE"
 }
 
+resource "aws_lambda_permission" "query_streaming_invoke_public" {
+  statement_id  = "AllowPublicInvokeFunction"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.query_streaming.function_name
+  principal     = "*"
+}
+
 # Ingestion Lambda
 
 resource "aws_lambda_function" "ingestion" {
