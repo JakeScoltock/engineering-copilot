@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -52,10 +53,21 @@ class SourceRef(BaseModel):
     chunk_index: int = Field(description="Zero-based chunk index within that file.")
 
 
+class ChatMessage(BaseModel):
+    """A single turn in a multi-turn conversation."""
+
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class QueryRequest(BaseModel):
     """Body for POST /repos/{repo_id}/query."""
 
     question: str = Field(description="Natural-language question about the repo.")
+    history: list[ChatMessage] = Field(
+        default_factory=list,
+        description="Prior conversation turns, oldest first. Optional.",
+    )
 
 
 class QueryResponse(BaseModel):
