@@ -32,7 +32,7 @@ _AWS_REGION = os.environ.get("AWS_REGION", "eu-west-1")
 _TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "")
 _BUCKET_NAME = os.environ.get("S3_BUCKET", "")
 _VECTOR_BUCKET_NAME = os.environ.get("VECTOR_BUCKET_NAME", "")
-_API_KEY = os.environ.get("API_KEY", "")
+_API_KEY_SECRET_ARN = os.environ.get("API_KEY_SECRET_ARN", "")
 _TOP_K = 5
 _MAX_QUESTION_LEN = 2000
 
@@ -40,6 +40,20 @@ _dynamodb = boto3.resource("dynamodb", region_name=_AWS_REGION)
 _s3 = boto3.client("s3", region_name=_AWS_REGION)
 _s3vectors = boto3.client("s3vectors", region_name=_AWS_REGION)
 _bedrock = boto3.client("bedrock-runtime", region_name=_AWS_REGION)
+_secrets = boto3.client("secretsmanager", region_name=_AWS_REGION)
+
+_api_key: str | None = None
+
+
+def _get_api_key() -> str:
+    global _api_key
+    if _api_key is None:
+        if not _API_KEY_SECRET_ARN:
+            _api_key = ""
+        else:
+            response = _secrets.get_secret_value(SecretId=_API_KEY_SECRET_ARN)
+            _api_key = response["SecretString"]
+    return _api_key
 
 # ---------------------------------------------------------------------------
 # awslambdaric 4.0.0 has no Python streaming API so we write directly to the
@@ -102,9 +116,10 @@ def _generate_events(event: dict):
     involving the streaming runtime API or http.client.
     """
     # Auth check.
-    if _API_KEY:
+    api_key = _get_api_key()
+    if api_key:
         headers = event.get("headers") or {}
-        if headers.get("x-api-key", "") != _API_KEY:
+        if headers.get("x-api-key", "") != api_key:
             yield {"type": "error", "error": "Unauthorized"}
             return
 

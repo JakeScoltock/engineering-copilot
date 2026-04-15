@@ -63,6 +63,11 @@ resource "aws_iam_role_policy" "query_api" {
         Action   = ["s3vectors:QueryVectors", "s3vectors:GetVectors", "s3vectors:GetIndex"]
         Resource = "arn:aws:s3vectors:${var.aws_region}:${data.aws_caller_identity.current.account_id}:bucket/${local.vector_bucket_name}/index/*"
       },
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.streaming_api_key.arn
+      },
     ]
   })
 }

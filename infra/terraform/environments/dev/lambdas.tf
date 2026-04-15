@@ -49,6 +49,7 @@ resource "aws_lambda_function" "query_streaming" {
       DYNAMODB_TABLE     = aws_dynamodb_table.jobs.name
       S3_BUCKET          = aws_s3_bucket.repo_data.bucket
       VECTOR_BUCKET_NAME = local.vector_bucket_name
+      API_KEY_SECRET_ARN = aws_secretsmanager_secret.streaming_api_key.arn
     }
   }
 }
@@ -65,6 +66,14 @@ resource "aws_lambda_function_url" "query_streaming" {
     allow_headers     = ["content-type", "x-api-key"]
     max_age           = 86400
   }
+}
+
+resource "aws_lambda_permission" "query_streaming_url_public" {
+  statement_id           = "AllowPublicInvoke"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.query_streaming.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
 }
 
 # Ingestion Lambda
