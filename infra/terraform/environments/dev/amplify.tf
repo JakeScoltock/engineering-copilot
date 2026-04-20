@@ -10,23 +10,21 @@ resource "aws_amplify_app" "frontend" {
 
   build_spec = <<-EOT
     version: 1
-    applications:
-      - appRoot: frontend
-        frontend:
-          phases:
-            preBuild:
-              commands:
-                - npm ci
-            build:
-              commands:
-                - npm run build
-          artifacts:
-            baseDirectory: .next
-            files:
-              - '**/*'
-          cache:
-            paths:
-              - node_modules/**/*
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - cd frontend && npm ci
+        build:
+          commands:
+            - cd frontend && npm run build
+      artifacts:
+        baseDirectory: frontend/.next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - frontend/node_modules/**/*
   EOT
 
   environment_variables = {
