@@ -13,3 +13,8 @@ output "api_key" {
   value       = aws_api_gateway_api_key.default.value
   sensitive   = true
 }
+
+output "amplify_url" {
+  description = "Amplify frontend URL (password: var.amplify_basic_auth_password, username: dev)"
+  value       = "https://main.${aws_amplify_app.frontend.default_domain}"
+}

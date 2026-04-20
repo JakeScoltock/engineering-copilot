@@ -8,4 +8,9 @@ variable "project" {
   default     = "engineering-copilot"
 }
 
+variable "amplify_basic_auth_password" {
+  description = "Password for Amplify basic auth. Username is 'dev'."
+  sensitive   = true
+}
+
 

@@ -101,6 +101,10 @@ jobs:
 
       - name: Plan
         run: terraform plan -input=false -out=tfplan
+        env:
+          TF_VAR_amplify_basic_auth_password: ${{ secrets.AMPLIFY_BASIC_AUTH_PASSWORD }}
 
       - name: Apply
         run: terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_amplify_basic_auth_password: ${{ secrets.AMPLIFY_BASIC_AUTH_PASSWORD }}
