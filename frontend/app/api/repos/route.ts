@@ -2,11 +2,11 @@ import { NextRequest } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const res = await fetch(`${process.env.AWS_API_URL}/repos`, {
+  const res = await fetch(`${process.env.BACKEND_API_URL}/repos`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': process.env.AWS_API_KEY ?? '',
+      'x-api-key': process.env.BACKEND_API_KEY ?? '',
     },
     body: JSON.stringify(body),
   })

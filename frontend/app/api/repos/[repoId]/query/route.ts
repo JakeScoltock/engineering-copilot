@@ -8,12 +8,12 @@ export async function POST(
   const body = await req.json()
 
   const upstream = await fetch(
-    `${process.env.AWS_STREAMING_URL}/repos/${repoId}/query`,
+    `${process.env.BACKEND_STREAMING_URL}/repos/${repoId}/query`,
     {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': process.env.AWS_API_KEY ?? '',
+        'x-api-key': process.env.BACKEND_API_KEY ?? '',
       },
       body: JSON.stringify(body),
     },

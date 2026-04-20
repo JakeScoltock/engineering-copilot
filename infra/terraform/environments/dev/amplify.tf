@@ -30,9 +30,9 @@ resource "aws_amplify_app" "frontend" {
   EOT
 
   environment_variables = {
-    AWS_API_URL       = aws_api_gateway_stage.dev.invoke_url
-    AWS_STREAMING_URL = trimsuffix(aws_lambda_function_url.query_streaming.function_url, "/")
-    AWS_API_KEY       = aws_api_gateway_api_key.default.value
+    BACKEND_API_URL       = aws_api_gateway_stage.dev.invoke_url
+    BACKEND_STREAMING_URL = trimsuffix(aws_lambda_function_url.query_streaming.function_url, "/")
+    BACKEND_API_KEY       = aws_api_gateway_api_key.default.value
   }
 
   enable_basic_auth      = true
