@@ -19,9 +19,9 @@ resource "aws_amplify_app" "frontend" {
         build:
           commands:
             - nvm use 20
-            - NEXT_TELEMETRY_DISABLED=1 npm run build --prefix frontend
+            - bash scripts/build_frontend.sh
       artifacts:
-        baseDirectory: frontend/.next
+        baseDirectory: frontend/.amplify-hosting
         files:
           - '**/*'
       cache:
