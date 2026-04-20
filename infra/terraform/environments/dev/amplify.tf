@@ -43,5 +43,5 @@ resource "aws_amplify_branch" "main" {
   app_id            = aws_amplify_app.frontend.id
   branch_name       = "main"
   stage             = "DEVELOPMENT"
-  enable_auto_build = true
+  enable_auto_build = false
 }

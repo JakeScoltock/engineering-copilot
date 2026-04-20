@@ -108,3 +108,9 @@ jobs:
         run: terraform apply -auto-approve tfplan
         env:
           TF_VAR_amplify_basic_auth_password: ${{ secrets.AMPLIFY_BASIC_AUTH_PASSWORD }}
+
+      - name: Deploy frontend
+        working-directory: ${{ github.workspace }}
+        run: |
+          APP_ID=$(aws amplify list-apps --region ${{ env.AWS_REGION }} --query "apps[?name=='engineering-copilot-frontend'].appId" --output text)
+          aws amplify start-job --app-id "$APP_ID" --branch-name main --job-type RELEASE --region ${{ env.AWS_REGION }}
