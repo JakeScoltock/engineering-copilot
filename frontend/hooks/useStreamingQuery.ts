@@ -33,9 +33,14 @@ export function useStreamingQuery(repoId: string) {
     setIsStreaming(true)
 
     try {
-      const res = await fetch(`/api/repos/${repoId}/query`, {
+      const streamingUrl = process.env.NEXT_PUBLIC_STREAMING_URL
+      const apiKey = process.env.NEXT_PUBLIC_STREAMING_API_KEY
+      const res = await fetch(`${streamingUrl}/repos/${repoId}/query`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey ?? '',
+        },
         body: JSON.stringify({ question, history }),
       })
 
