@@ -21,6 +21,16 @@ if [ -d public ]; then
   cp -r public/. .amplify-hosting/static/
 fi
 
+# Wrapper script that bakes build-time env vars into the server process.
+# Amplify injects env vars at build time; this captures them so the
+# Next.js API routes can reach the backend at runtime.
+cat > .amplify-hosting/compute/default/run.js << RUNJS
+process.env.BACKEND_API_URL = process.env.BACKEND_API_URL || "${BACKEND_API_URL}";
+process.env.BACKEND_API_KEY = process.env.BACKEND_API_KEY || "${BACKEND_API_KEY}";
+process.env.BACKEND_STREAMING_URL = process.env.BACKEND_STREAMING_URL || "${BACKEND_STREAMING_URL}";
+require('./server.js');
+RUNJS
+
 # Routing manifest
 cat > .amplify-hosting/deploy-manifest.json << 'EOF'
 {
@@ -45,7 +55,7 @@ cat > .amplify-hosting/deploy-manifest.json << 'EOF'
     {
       "name": "default",
       "runtime": "nodejs20.x",
-      "entrypoint": "server.js"
+      "entrypoint": "run.js"
     }
   ],
   "framework": {
