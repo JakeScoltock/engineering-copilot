@@ -14,10 +14,10 @@ resource "aws_amplify_app" "frontend" {
       phases:
         preBuild:
           commands:
-            - cd frontend && npm ci
+            - npm ci --prefix frontend
         build:
           commands:
-            - cd frontend && npm run build
+            - npm run build --prefix frontend
       artifacts:
         baseDirectory: frontend/.next
         files:
