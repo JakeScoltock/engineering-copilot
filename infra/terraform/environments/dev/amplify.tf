@@ -10,25 +10,23 @@ resource "aws_amplify_app" "frontend" {
 
   build_spec = <<-EOT
     version: 1
-    applications:
-      - frontend:
-          phases:
-            preBuild:
-              commands:
-                - nvm use 20
-                - npm ci
-            build:
-              commands:
-                - nvm use 20
-                - NEXT_TELEMETRY_DISABLED=1 npm run build
-          artifacts:
-            baseDirectory: .next
-            files:
-              - '**/*'
-          cache:
-            paths:
-              - node_modules/**/*
-        appRoot: frontend
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm use 20
+            - npm ci --prefix frontend
+        build:
+          commands:
+            - nvm use 20
+            - bash scripts/build_frontend.sh
+      artifacts:
+        baseDirectory: frontend/.amplify-hosting
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - frontend/node_modules/**/*
   EOT
 
   environment_variables = {
