@@ -44,7 +44,7 @@ cat > .amplify-hosting/deploy-manifest.json << 'EOF'
   "computeResources": [
     {
       "name": "default",
-      "runtime": "nodejs18.x",
+      "runtime": "nodejs20.x",
       "entrypoint": "server.js"
     }
   ],
