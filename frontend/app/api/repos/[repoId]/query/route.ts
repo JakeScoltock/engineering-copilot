@@ -21,6 +21,11 @@ export async function POST(
 
   return new Response(upstream.body, {
     status: upstream.status,
-    headers: { 'content-type': 'application/x-ndjson' },
+    headers: {
+      'content-type': 'application/x-ndjson',
+      'x-accel-buffering': 'no',
+      'cache-control': 'no-cache',
+      'transfer-encoding': 'chunked',
+    },
   })
 }
