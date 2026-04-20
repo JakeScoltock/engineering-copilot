@@ -14,10 +14,12 @@ resource "aws_amplify_app" "frontend" {
       phases:
         preBuild:
           commands:
+            - nvm use 20
             - npm ci --prefix frontend
         build:
           commands:
-            - npm run build --prefix frontend
+            - nvm use 20
+            - NEXT_TELEMETRY_DISABLED=1 npm run build --prefix frontend
       artifacts:
         baseDirectory: frontend/.next
         files:
