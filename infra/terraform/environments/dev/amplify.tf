@@ -30,13 +30,13 @@ resource "aws_amplify_app" "frontend" {
   EOT
 
   environment_variables = {
-    BACKEND_API_URL                   = aws_api_gateway_stage.dev.invoke_url
-    BACKEND_STREAMING_URL             = trimsuffix(aws_lambda_function_url.query_streaming.function_url, "/")
-    BACKEND_API_KEY                   = aws_api_gateway_api_key.default.value
+    BACKEND_API_URL       = aws_api_gateway_stage.dev.invoke_url
+    BACKEND_STREAMING_URL = trimsuffix(aws_lambda_function_url.query_streaming.function_url, "/")
+    BACKEND_API_KEY       = aws_api_gateway_api_key.default.value
     # NEXT_PUBLIC_ prefix bakes these into the client bundle at build time
     # so the browser can call the streaming Lambda directly (Amplify/CloudFront buffers SSR streams)
-    NEXT_PUBLIC_STREAMING_URL         = trimsuffix(aws_lambda_function_url.query_streaming.function_url, "/")
-    NEXT_PUBLIC_STREAMING_API_KEY     = aws_api_gateway_api_key.default.value
+    NEXT_PUBLIC_STREAMING_URL     = trimsuffix(aws_lambda_function_url.query_streaming.function_url, "/")
+    NEXT_PUBLIC_STREAMING_API_KEY = aws_api_gateway_api_key.default.value
   }
 
   enable_basic_auth      = true
