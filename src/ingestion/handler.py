@@ -13,6 +13,7 @@ from src.ingestion.embedder import embed_texts
 from src.ingestion.github_fetcher import fetch_repo
 from src.shared.bedrock import EMBEDDING_DIM
 from src.shared.models import IngestionStatus
+from src.shared.observability import Timer, log_event
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -57,44 +58,55 @@ def lambda_handler(event, context):
 
 
 def _ingest(repo_id: str, github_url: str) -> None:
-    logger.info("ingestion started repo_id=%s github_url=%s", repo_id, github_url)
     table = _dynamodb.Table(_TABLE_NAME)
-    try:
-        docs = fetch_repo(github_url, github_token=_get_github_token())
-        logger.info("fetch complete repo_id=%s docs=%d", repo_id, len(docs))
+    with Timer() as total_timer:
+        log_event(logger, "info", "ingestion_started", repo_id=repo_id, github_url=github_url)
+        try:
+            with Timer() as t:
+                docs = fetch_repo(github_url, github_token=_get_github_token())
+            log_event(logger, "info", "fetch_complete", repo_id=repo_id, docs=len(docs), latency_ms=round(t.elapsed_ms))
 
-        chunks = chunk_documents(docs)
-        if len(chunks) > _MAX_CHUNKS:
-            logger.warning("chunk cap reached repo_id=%s chunks=%d cap=%d — truncating", repo_id, len(chunks), _MAX_CHUNKS)
-            chunks = chunks[:_MAX_CHUNKS]
-        logger.info("chunking complete repo_id=%s chunks=%d", repo_id, len(chunks))
+            with Timer() as t:
+                chunks = chunk_documents(docs)
+            if len(chunks) > _MAX_CHUNKS:
+                logger.warning("chunk cap reached repo_id=%s chunks=%d cap=%d — truncating", repo_id, len(chunks), _MAX_CHUNKS)
+                chunks = chunks[:_MAX_CHUNKS]
+            log_event(logger, "info", "chunking_complete", repo_id=repo_id, chunks=len(chunks), latency_ms=round(t.elapsed_ms))
 
-        logger.info("embedding started repo_id=%s chunks=%d", repo_id, len(chunks))
-        embeddings = embed_texts([c.text for c in chunks], _bedrock)
-        logger.info("embedding complete repo_id=%s shape=%s", repo_id, embeddings.shape)
+            log_event(logger, "info", "embedding_started", repo_id=repo_id, chunks=len(chunks))
+            with Timer() as t:
+                embeddings = embed_texts([c.text for c in chunks], _bedrock)
+            log_event(logger, "info", "embedding_complete", repo_id=repo_id, shape=str(embeddings.shape), latency_ms=round(t.elapsed_ms))
 
-        # Store chunk metadata in S3 so the query Lambda can retrieve text.
-        _s3.put_object(
-            Bucket=_BUCKET_NAME,
-            Key=f"repos/{repo_id}/chunks.json",
-            Body=json.dumps([c.model_dump(mode="json") for c in chunks]),
-            ContentType="application/json",
-        )
-        logger.info("chunks.json written repo_id=%s bucket=%s", repo_id, _BUCKET_NAME)
+            # Store chunk metadata in S3 so the query Lambda can retrieve text.
+            with Timer() as t:
+                _s3.put_object(
+                    Bucket=_BUCKET_NAME,
+                    Key=f"repos/{repo_id}/chunks.json",
+                    Body=json.dumps([c.model_dump(mode="json") for c in chunks]),
+                    ContentType="application/json",
+                )
+            log_event(logger, "info", "chunks_written", repo_id=repo_id, bucket=_BUCKET_NAME, latency_ms=round(t.elapsed_ms))
 
-        # Store vectors in S3 Vectors for ANN similarity search.
-        _ensure_vector_bucket()
-        _reset_index(repo_id)
-        _put_vectors(repo_id, chunks, embeddings)
-        logger.info("vectors written repo_id=%s total=%d", repo_id, len(chunks))
+            # Store vectors in S3 Vectors for ANN similarity search.
+            with Timer() as t:
+                _ensure_vector_bucket()
+                _reset_index(repo_id)
+                _put_vectors(repo_id, chunks, embeddings)
+            log_event(logger, "info", "vectors_written", repo_id=repo_id, total=len(chunks), latency_ms=round(t.elapsed_ms))
 
-        _update_status(table, repo_id, IngestionStatus.READY)
-        logger.info("ingestion complete repo_id=%s status=ready", repo_id)
+            _update_status(table, repo_id, IngestionStatus.READY)
+            log_event(logger, "info", "ingestion_complete",
+                      repo_id=repo_id, chunks=len(chunks), docs=len(docs),
+                      total_latency_ms=round(total_timer.elapsed_ms))
 
-    except Exception as exc:
-        logger.exception("ingestion failed repo_id=%s error=%s", repo_id, exc)
-        _update_status(table, repo_id, IngestionStatus.FAILED, error=str(exc))
-        raise
+        except Exception as exc:
+            log_event(logger, "error", "ingestion_failed",
+                      repo_id=repo_id, error=type(exc).__name__,
+                      total_latency_ms=round(total_timer.elapsed_ms))
+            logger.exception("ingestion failed repo_id=%s error=%s", repo_id, exc)
+            _update_status(table, repo_id, IngestionStatus.FAILED, error=str(exc))
+            raise
 
 
 def _ensure_vector_bucket() -> None:

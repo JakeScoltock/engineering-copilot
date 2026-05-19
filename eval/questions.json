@@ -1,0 +1,27 @@
+[
+  {
+    "question": "How does the document chunking pipeline work?",
+    "expected_keywords": ["chunk", "overlap", "line"],
+    "notes": "Should describe line-based splitting with 120-line chunks and 20-line overlap"
+  },
+  {
+    "question": "What embedding model is used and what is the vector dimension?",
+    "expected_keywords": ["titan", "1024"],
+    "notes": "amazon.titan-embed-text-v2:0, 1024 dimensions"
+  },
+  {
+    "question": "How are vectors stored and searched?",
+    "expected_keywords": ["s3vectors", "cosine"],
+    "notes": "S3 Vectors with cosine distance metric, top-5 retrieval"
+  },
+  {
+    "question": "How does the streaming response work?",
+    "expected_keywords": ["streaming", "ndjson"],
+    "notes": "Lambda Function URL, NDJSON events: sources, delta, done"
+  },
+  {
+    "question": "How is the GitHub token retrieved securely?",
+    "expected_keywords": ["secretsmanager", "secret"],
+    "notes": "AWS Secrets Manager, cached per Lambda container"
+  }
+]

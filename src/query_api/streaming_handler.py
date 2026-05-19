@@ -17,6 +17,7 @@ import http.client
 import json
 import logging
 import os
+import time
 
 import boto3
 
@@ -24,6 +25,7 @@ import awslambdaric.lambda_runtime_client as _rtc
 
 from src.query_api.bedrock import embed_text, generate_answer_streaming
 from src.shared.models import IngestionStatus, QueryRequest
+from src.shared.observability import Timer, get_request_id, log_event
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -162,20 +164,29 @@ def _generate_events(event: dict):
         yield {"type": "error", "error": f"question must be {_MAX_QUESTION_LEN} characters or fewer"}
         return
 
-    logger.info("streaming_query repo_id=%s question_len=%d history_turns=%d",
-                repo_id, len(req.question), len(req.history))
+    request_id = get_request_id(event)
+    log_event(logger, "info", "request_received",
+              repo_id=repo_id, question_len=len(req.question),
+              history_turns=len(req.history), request_id=request_id)
+    _t0 = time.perf_counter()
 
     # Embed question and find relevant chunks.
-    query_vec = embed_text(req.question, _bedrock)
-    response = _s3vectors.query_vectors(
-        vectorBucketName=_VECTOR_BUCKET_NAME,
-        indexName=repo_id,
-        queryVector={"float32": query_vec.tolist()},
-        topK=_TOP_K,
-        returnMetadata=True,
-    )
+    log_event(logger, "info", "embedding_started", request_id=request_id)
+    with Timer() as t:
+        query_vec = embed_text(req.question, _bedrock)
+    log_event(logger, "info", "embedding_complete", latency_ms=round(t.elapsed_ms), request_id=request_id)
+
+    log_event(logger, "info", "vector_search_started", top_k=_TOP_K, request_id=request_id)
+    with Timer() as t:
+        response = _s3vectors.query_vectors(
+            vectorBucketName=_VECTOR_BUCKET_NAME,
+            indexName=repo_id,
+            queryVector={"float32": query_vec.tolist()},
+            topK=_TOP_K,
+            returnMetadata=True,
+        )
     hits = response.get("vectors", [])
-    logger.info("streaming_query vectors repo_id=%s hits=%d", repo_id, len(hits))
+    log_event(logger, "info", "vector_search_complete", hits=len(hits), latency_ms=round(t.elapsed_ms), request_id=request_id)
 
     if not hits:
         yield {"type": "sources", "sources": []}
@@ -196,13 +207,20 @@ def _generate_events(event: dict):
     yield {"type": "sources", "sources": sources}
 
     # Stream answer tokens.
+    log_event(logger, "info", "llm_call_started", model="claude-haiku-4-5", request_id=request_id)
     context_text = "\n\n---\n\n".join(context_parts)
     answer_parts = []
-    for delta in generate_answer_streaming(req.question, context_text, req.history, _bedrock):
-        answer_parts.append(delta)
-        yield {"type": "delta", "text": delta}
+    with Timer() as t:
+        for delta in generate_answer_streaming(req.question, context_text, req.history, _bedrock):
+            answer_parts.append(delta)
+            yield {"type": "delta", "text": delta}
+    answer = "".join(answer_parts)
+    log_event(logger, "info", "llm_call_complete", answer_len=len(answer), latency_ms=round(t.elapsed_ms), request_id=request_id)
 
-    yield {"type": "done", "answer": "".join(answer_parts)}
+    total_ms = round((time.perf_counter() - _t0) * 1000)
+    log_event(logger, "info", "request_complete",
+              total_latency_ms=total_ms, sources_count=len(sources), request_id=request_id)
+    yield {"type": "done", "answer": answer}
 
 
 # ---------------------------------------------------------------------------
