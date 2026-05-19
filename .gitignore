@@ -55,6 +55,10 @@ htmlcov/
 .coverage
 coverage.xml
 
+# ── Evaluation results ────────────────────────────────────────
+eval/results/*
+!eval/results/.gitkeep
+
 # ── OS / editor ───────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -62,3 +66,4 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/settings.json
+

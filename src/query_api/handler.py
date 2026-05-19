@@ -10,6 +10,7 @@ import boto3
 from src.ingestion.github_fetcher import parse_github_url
 from src.query_api.bedrock import generate_answer, embed_text
 from src.shared.models import IngestionStatus, QueryRequest, QueryResponse, RepoJob, SourceRef
+from src.shared.observability import Timer, get_request_id, log_event
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -168,44 +169,65 @@ def _query_repo(event: dict) -> dict:
     if len(req.question) > _MAX_QUESTION_LEN:
         return _error(400, f"question must be {_MAX_QUESTION_LEN} characters or fewer")
 
-    logger.info("query_repo repo_id=%s question_len=%d", repo_id, len(req.question))
+    request_id = get_request_id(event)
+    log_event(logger, "info", "request_received", repo_id=repo_id, question_len=len(req.question), request_id=request_id)
 
-    # Embed the question.
-    query_vec = embed_text(req.question, _bedrock)
+    with Timer() as total_timer:
+        try:
+            # Embed the question.
+            log_event(logger, "info", "embedding_started", request_id=request_id)
+            with Timer() as t:
+                query_vec = embed_text(req.question, _bedrock)
+            log_event(logger, "info", "embedding_complete", latency_ms=round(t.elapsed_ms), request_id=request_id)
 
-    # Find the most relevant chunks via S3 Vectors ANN search.
-    response = _s3vectors.query_vectors(
-        vectorBucketName=_VECTOR_BUCKET_NAME,
-        indexName=repo_id,
-        queryVector={"float32": query_vec.tolist()},
-        topK=_TOP_K,
-        returnMetadata=True,
-    )
-    hits = response.get("vectors", [])
-    logger.info("query_vectors repo_id=%s hits=%d", repo_id, len(hits))
+            # Find the most relevant chunks via S3 Vectors ANN search.
+            log_event(logger, "info", "vector_search_started", top_k=_TOP_K, request_id=request_id)
+            with Timer() as t:
+                response = _s3vectors.query_vectors(
+                    vectorBucketName=_VECTOR_BUCKET_NAME,
+                    indexName=repo_id,
+                    queryVector={"float32": query_vec.tolist()},
+                    topK=_TOP_K,
+                    returnMetadata=True,
+                )
+            hits = response.get("vectors", [])
+            log_event(logger, "info", "vector_search_complete", hits=len(hits), latency_ms=round(t.elapsed_ms), request_id=request_id)
 
-    if not hits:
-        return _ok(QueryResponse(answer="No relevant content found.", sources=[]).model_dump())
+            if not hits:
+                return _ok(QueryResponse(answer="No relevant content found.", sources=[]).model_dump())
 
-    chunks_obj = _s3.get_object(Bucket=_BUCKET_NAME, Key=f"repos/{repo_id}/chunks.json")
-    chunks = json.loads(chunks_obj["Body"].read())
+            chunks_obj = _s3.get_object(Bucket=_BUCKET_NAME, Key=f"repos/{repo_id}/chunks.json")
+            chunks = json.loads(chunks_obj["Body"].read())
 
-    # Assemble context from the returned hits.
-    context_parts = []
-    sources = []
-    for hit in hits:
-        idx = int(hit["key"])
-        chunk = chunks[idx]
-        context_parts.append(chunk["text"])
-        sources.append(SourceRef(file=chunk["source"], chunk_index=chunk["chunk_index"]))
+            # Assemble context from the returned hits.
+            context_parts = []
+            sources = []
+            for hit in hits:
+                idx = int(hit["key"])
+                chunk = chunks[idx]
+                context_parts.append(chunk["text"])
+                sources.append(SourceRef(file=chunk["source"], chunk_index=chunk["chunk_index"]))
 
-    context = "\n\n---\n\n".join(context_parts)
+            context = "\n\n---\n\n".join(context_parts)
 
-    answer = generate_answer(req.question, context, _bedrock)
-    logger.info("query_repo complete repo_id=%s answer_len=%d", repo_id, len(answer))
+            log_event(logger, "info", "llm_call_started", model="claude-haiku-4-5", request_id=request_id)
+            with Timer() as t:
+                answer = generate_answer(req.question, context, _bedrock)
+            log_event(logger, "info", "llm_call_complete", answer_len=len(answer), latency_ms=round(t.elapsed_ms), request_id=request_id)
 
-    response_body = QueryResponse(answer=answer, sources=sources)
-    return _ok(response_body.model_dump())
+            log_event(logger, "info", "request_complete",
+                      total_latency_ms=round(total_timer.elapsed_ms),
+                      sources_count=len(sources), request_id=request_id)
+
+            response_body = QueryResponse(answer=answer, sources=sources)
+            return _ok(response_body.model_dump())
+
+        except Exception as exc:
+            log_event(logger, "error", "request_error",
+                      error=type(exc).__name__,
+                      latency_ms=round(total_timer.elapsed_ms),
+                      request_id=request_id)
+            raise
 
 
 # Helpers
